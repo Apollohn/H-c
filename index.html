@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quản lý lịch học nhóm</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://apis.google.com/js/api.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            text-align: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            max-width: 600px;
+            margin: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            padding: 10px;
+            border: 1px solid #ddd;
+            text-align: center;
+        }
+        th {
+            background-color: #4CAF50;
+            color: white;
+        }
+        tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+        button {
+            background-color: #28a745;
+            color: white;
+            border: none;
+            padding: 10px;
+            margin: 5px;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+        button:hover {
+            background-color: #218838;
+        }
+        input, select {
+            padding: 8px;
+            margin: 5px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📅 Quản lý lịch học nhóm</h1>
+        <input type="date" id="selectedDate">
+        <input type="text" id="eventTitle" placeholder="Nhập nội dung học">
+        <select id="person">
+            <option value="Person 1">Lâm</option>
+            <option value="Person 2">Thiện</option>
+            <option value="Person 3">Hưng</option>
+        </select>
+        <button onclick="addEvent()">➕ Thêm sự kiện</button>
+        <button onclick="syncWithGoogleCalendar()">📆 Đồng bộ Google Calendar</button>
+        
+        <h2>📖 Lịch học</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Ngày</th>
+                    <th>Lâm</th>
+                    <th>Thiện</th>
+                    <th>Hưng</th>
+                </tr>
+            </thead>
+            <tbody id="eventTableBody"></tbody>
+        </table>
+    </div>
+    
+    <script>
+        let events = [];
+
+        function addEvent() {
+            const date = document.getElementById('selectedDate').value;
+            const title = document.getElementById('eventTitle').value;
+            const person = document.getElementById('person').value;
+            
+            if (date && title.trim()) {
+                events.push({ date, title, person });
+                renderEvents();
+                document.getElementById('eventTitle').value = '';
+                scheduleReminder(date, title);
+            }
+        }
+
+        function renderEvents() {
+            const eventTableBody = document.getElementById('eventTableBody');
+            eventTableBody.innerHTML = '';
+            
+            const groupedEvents = {};
+            events.forEach(event => {
+                if (!groupedEvents[event.date]) {
+                    groupedEvents[event.date] = { "Person 1": "", "Person 2": "", "Person 3": "" };
+                }
+                groupedEvents[event.date][event.person] = event.title;
+            });
+            
+            Object.keys(groupedEvents).forEach(date => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${date}</td>
+                    <td>${groupedEvents[date]["Person 1"]}</td>
+                    <td>${groupedEvents[date]["Person 2"]}</td>
+                    <td>${groupedEvents[date]["Person 3"]}</td>
+                `;
+                eventTableBody.appendChild(row);
+            });
+        }
+
+        function scheduleReminder(date, title) {
+            const eventDate = new Date(date + 'T09:00:00');
+            const now = new Date();
+            const timeUntilEvent = eventDate - now;
+            if (timeUntilEvent > 0) {
+                setTimeout(() => {
+                    alert(`🔔 Nhắc nhở: ${title} vào ngày ${date}`);
+                }, timeUntilEvent);
+            }
+        }
+
+        function syncWithGoogleCalendar() {
+            gapi.load('client:auth2', () => {
+                gapi.client.init({
+                    apiKey: 'YOUR_API_KEY',
+                    clientId: 'YOUR_CLIENT_ID',
+                    discoveryDocs: ["https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest"],
+                    scope: "https://www.googleapis.com/auth/calendar.events"
+                }).then(() => {
+                    gapi.auth2.getAuthInstance().signIn().then(() => {
+                        events.forEach(event => {
+                            const gEvent = {
+                                'summary': event.title,
+                                'start': { 'date': event.date },
+                                'end': { 'date': event.date }
+                            };
+                            gapi.client.calendar.events.insert({
+                                'calendarId': 'primary',
+                                'resource': gEvent
+                            }).then(() => {
+                                alert(`✅ Đã đồng bộ: ${event.title}`);
+                            });
+                        });
+                    });
+                });
+            });
+        }
+    </script>
+</body>
+</html>
